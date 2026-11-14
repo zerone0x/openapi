@@ -390,3 +390,146 @@ paths:
 		})
 	}
 }
+
+// Schemas must be validated against the JSON Schema dialect of the document's OpenAPI version,
+// so OpenAPI 3.0 keywords such as boolean exclusiveMinimum/exclusiveMaximum are accepted in 3.0
+// documents and rejected in 3.1 documents.
+func TestOpenAPI_Validate_SchemaDialectFollowsDocumentVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		yml      string
+		wantErrs []string
+	}{
+		{
+			name: "3.0 boolean exclusiveMinimum in component schema",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: "1"
+paths: {}
+components:
+  schemas:
+    S:
+      type: number
+      minimum: 5
+      exclusiveMinimum: true
+`,
+		},
+		{
+			name: "3.0 boolean exclusive bounds in parameter, media type and nested schemas",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: "1"
+paths:
+  /items:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: false
+            maximum: 100
+            exclusiveMaximum: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  price:
+                    type: number
+                    maximum: 10
+                    exclusiveMaximum: false
+`,
+		},
+		{
+			name: "3.0 $ref with sibling description is a reference object",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: "1"
+paths:
+  /items:
+    get:
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+                description: ignored in 3.0
+components:
+  schemas:
+    Item:
+      type: string
+    Alias:
+      $ref: "#/components/schemas/Item"
+`,
+		},
+		{
+			name: "3.0 numeric exclusiveMinimum is rejected",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: "1"
+paths: {}
+components:
+  schemas:
+    S:
+      type: number
+      exclusiveMinimum: 5
+`,
+			wantErrs: []string{"[11:25] error validation-type-mismatch schema.exclusiveMinimum expected `boolean`, got `number`"},
+		},
+		{
+			name: "3.1 boolean exclusiveMinimum is rejected",
+			yml: `
+openapi: 3.1.0
+info:
+  title: Test API
+  version: "1"
+paths: {}
+components:
+  schemas:
+    S:
+      type: number
+      minimum: 5
+      exclusiveMinimum: true
+`,
+			wantErrs: []string{"[12:25] error validation-type-mismatch schema.exclusiveMinimum expected `number`, got `boolean`"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// openapi.Unmarshal is the path used by `openapi spec validate`.
+			_, validationErrs, err := openapi.Unmarshal(t.Context(), bytes.NewBufferString(tt.yml))
+			require.NoError(t, err)
+
+			errMessages := make([]string, 0, len(validationErrs))
+			for _, vErr := range validationErrs {
+				errMessages = append(errMessages, vErr.Error())
+			}
+
+			if len(tt.wantErrs) == 0 {
+				require.Empty(t, errMessages, "expected no validation errors")
+				return
+			}
+			require.ElementsMatch(t, tt.wantErrs, errMessages)
+		})
+	}
+}

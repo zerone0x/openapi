@@ -258,10 +258,10 @@ func (j *JSONSchema[T]) Validate(ctx context.Context, opts ...validation.Option)
 	if j.IsSchema() {
 		schema := j.GetSchema()
 		if schema != nil {
-			// Convert opts to the expected validation options type
-			// For now, we'll call without options since the Schema.Validate method
-			// signature may vary
-			return schema.Validate(ctx)
+			// Pass the options through so context such as the parent document's
+			// OpenAPI version selects the matching dialect (e.g. 3.0 boolean
+			// exclusiveMinimum/exclusiveMaximum).
+			return schema.Validate(ctx, opts...)
 		}
 	}
 

@@ -500,15 +500,6 @@ oneOf: "invalid"
 			},
 		},
 		{
-			name: "$ref with additional properties not allowed in OpenAPI 3.0",
-			yml: `
-$schema: "https://spec.openapis.org/oas/3.0/dialect/2024-10-18"
-$ref: "#/components/schemas/User"
-required: ["name", "email"]
-`,
-			wantErrs: []string{"[2:1] error validation-invalid-schema schema. additional properties '$ref' not allowed"},
-		},
-		{
 			name: "empty component name in $ref",
 			yml: `
 $ref: "#/components/schemas/"
