@@ -161,6 +161,100 @@ jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 x-custom: value
 `,
 		},
+		{
+			name: "valid_3_0_3_boolean_exclusive_minimum_maximum",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            exclusiveMaximum: true
+      responses:
+        '200':
+          description: Successful response
+components:
+  schemas:
+    Price:
+      type: number
+      minimum: 5
+      exclusiveMinimum: true
+      maximum: 10
+      exclusiveMaximum: false
+`,
+		},
+		{
+			name: "valid_3_0_3_schema_references",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: price
+          in: query
+          schema:
+            $ref: '#/components/schemas/Price'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceAlias'
+components:
+  schemas:
+    Price:
+      type: number
+    PriceAlias:
+      $ref: '#/components/schemas/Price'
+`,
+		},
+		{
+			name: "valid_3_0_3_schema_references_with_siblings",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: price
+          in: query
+          schema:
+            $ref: '#/components/schemas/Price'
+            description: Price filter
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceAlias'
+                nullable: true
+components:
+  schemas:
+    Price:
+      type: number
+    PriceAlias:
+      $ref: '#/components/schemas/Price'
+      description: Alias of Price
+      x-internal: true
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -356,6 +450,69 @@ paths:
           description: ok
 `,
 			wantErrs: []string{"error validation-operation-parameters parameter \"id\" is duplicated in path \"/users/{id}\""},
+		},
+		{
+			name: "invalid_3_0_3_schema_numeric_exclusive_minimum",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: number
+      exclusiveMinimum: 5
+`,
+			wantErrs: []string{"[11:25] error validation-type-mismatch schema.exclusiveMinimum expected `boolean`, got `number`"},
+		},
+		{
+			name: "invalid_3_0_3_schema_type_array",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: [string, 'null']
+`,
+			wantErrs: []string{"[10:13] error validation-type-mismatch schema.type expected `string`, got `array`"},
+		},
+		{
+			name: "invalid_3_0_3_schema_examples",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: string
+      examples: ['a']
+`,
+			wantErrs: []string{"[10:7] error validation-invalid-schema schema. additional properties 'examples' not allowed"},
+		},
+		{
+			name: "invalid_3_0_3_schema_unknown_keyword",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: string
+      foo: bar
+`,
+			wantErrs: []string{"[10:7] error validation-invalid-schema schema. additional properties 'foo' not allowed"},
 		},
 	}
 

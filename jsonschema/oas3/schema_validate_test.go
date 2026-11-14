@@ -344,6 +344,14 @@ required: ["name", "email"]
 description: "User schema with additional validation requirements"
 `,
 		},
+		{
+			name: "valid schema with $ref and additional properties (OpenAPI 3.0)",
+			yml: `
+$schema: "https://spec.openapis.org/oas/3.0/dialect/2024-10-18"
+$ref: "#/components/schemas/User"
+required: ["name", "email"]
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -500,13 +508,16 @@ oneOf: "invalid"
 			},
 		},
 		{
-			name: "$ref with additional properties not allowed in OpenAPI 3.0",
+			name: "invalid nested schema in OpenAPI 3.0",
 			yml: `
 $schema: "https://spec.openapis.org/oas/3.0/dialect/2024-10-18"
-$ref: "#/components/schemas/User"
-required: ["name", "email"]
+type: object
+properties:
+  price:
+    type: number
+    exclusiveMinimum: 5
 `,
-			wantErrs: []string{"[2:1] error validation-invalid-schema schema. additional properties '$ref' not allowed"},
+			wantErrs: []string{"[7:23] error validation-type-mismatch schema.properties.price.exclusiveMinimum expected `boolean`, got `number`"},
 		},
 		{
 			name: "empty component name in $ref",

@@ -122,10 +122,17 @@ func (js *Schema) Validate(ctx context.Context, opts ...validation.Option) []err
 		schema = JSONSchema31SchemaID
 	}
 
+	core := js.GetCore()
+
+	// In OpenAPI 3.0 a $ref is a Reference Object rather than a Schema Object (any sibling keys are ignored), so the 3.0 dialect does not apply to it
+	if schema == JSONSchema30SchemaID && js.IsReference() {
+		js.Valid = len(errs) == 0 && core.GetValid()
+		return errs
+	}
+
 	oasSchemaValidator := initValidation(schema)
 
 	buf := bytes.NewBuffer([]byte{})
-	core := js.GetCore()
 
 	if err := json.YAMLToJSON(core.RootNode, 0, buf); err != nil {
 		return []error{
@@ -159,6 +166,9 @@ func getRootCauses(err *jsValidator.ValidationError, js core.Schema) []error {
 	errs := []error{}
 
 	for _, cause := range err.Causes {
+		if isMissingReference(cause) {
+			continue
+		}
 		if len(cause.Causes) == 0 {
 			var errJP jsonpointer.JSONPointer
 			switch {
@@ -228,6 +238,13 @@ func getRootCauses(err *jsValidator.ValidationError, js core.Schema) []error {
 	}
 
 	return errs
+}
+
+// isMissingReference reports whether the error only says that a Schema Object is not a Reference Object,
+// which the OpenAPI 3.0 dialect produces alongside the actual schema errors when a schema fails validation
+func isMissingReference(err *jsValidator.ValidationError) bool {
+	r, ok := err.ErrorKind.(*kind.Required)
+	return ok && strings.HasSuffix(err.SchemaURL, "#/definitions/Reference") && len(r.Missing) == 1 && r.Missing[0] == "$ref"
 }
 
 var (

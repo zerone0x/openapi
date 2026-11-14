@@ -258,10 +258,7 @@ func (j *JSONSchema[T]) Validate(ctx context.Context, opts ...validation.Option)
 	if j.IsSchema() {
 		schema := j.GetSchema()
 		if schema != nil {
-			// Convert opts to the expected validation options type
-			// For now, we'll call without options since the Schema.Validate method
-			// signature may vary
-			return schema.Validate(ctx)
+			return schema.Validate(ctx, opts...)
 		}
 	}
 
