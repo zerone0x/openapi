@@ -161,6 +161,36 @@ jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 x-custom: value
 `,
 		},
+		{
+			name: "valid_3_0_3_boolean_exclusive_minimum_maximum",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            maximum: 100
+            exclusiveMaximum: true
+      responses:
+        '200':
+          description: Successful response
+components:
+  schemas:
+    Price:
+      type: number
+      minimum: 5
+      exclusiveMinimum: true
+      maximum: 10
+      exclusiveMaximum: false
+`,
+		},
 	}
 
 	for _, tt := range tests {
