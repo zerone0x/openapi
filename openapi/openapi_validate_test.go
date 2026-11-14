@@ -451,6 +451,69 @@ paths:
 `,
 			wantErrs: []string{"error validation-operation-parameters parameter \"id\" is duplicated in path \"/users/{id}\""},
 		},
+		{
+			name: "invalid_3_0_3_schema_numeric_exclusive_minimum",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: number
+      exclusiveMinimum: 5
+`,
+			wantErrs: []string{"[11:25] error validation-type-mismatch schema.exclusiveMinimum expected `boolean`, got `number`"},
+		},
+		{
+			name: "invalid_3_0_3_schema_type_array",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: [string, 'null']
+`,
+			wantErrs: []string{"[10:13] error validation-type-mismatch schema.type expected `string`, got `array`"},
+		},
+		{
+			name: "invalid_3_0_3_schema_examples",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: string
+      examples: ['a']
+`,
+			wantErrs: []string{"[10:7] error validation-invalid-schema schema. additional properties 'examples' not allowed"},
+		},
+		{
+			name: "invalid_3_0_3_schema_unknown_keyword",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Price:
+      type: string
+      foo: bar
+`,
+			wantErrs: []string{"[10:7] error validation-invalid-schema schema. additional properties 'foo' not allowed"},
+		},
 	}
 
 	for _, tt := range tests {
