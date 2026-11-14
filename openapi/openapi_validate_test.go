@@ -191,6 +191,36 @@ components:
       exclusiveMaximum: false
 `,
 		},
+		{
+			name: "valid_3_0_3_schema_references",
+			yml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - name: price
+          in: query
+          schema:
+            $ref: '#/components/schemas/Price'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceAlias'
+components:
+  schemas:
+    Price:
+      type: number
+    PriceAlias:
+      $ref: '#/components/schemas/Price'
+`,
+		},
 	}
 
 	for _, tt := range tests {

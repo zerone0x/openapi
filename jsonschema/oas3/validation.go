@@ -122,10 +122,17 @@ func (js *Schema) Validate(ctx context.Context, opts ...validation.Option) []err
 		schema = JSONSchema31SchemaID
 	}
 
+	core := js.GetCore()
+
+	// In OpenAPI 3.0 a $ref is a Reference Object rather than a Schema Object, so the 3.0 dialect does not apply to it
+	if schema == JSONSchema30SchemaID && js.IsReferenceOnly() {
+		js.Valid = len(errs) == 0 && core.GetValid()
+		return errs
+	}
+
 	oasSchemaValidator := initValidation(schema)
 
 	buf := bytes.NewBuffer([]byte{})
-	core := js.GetCore()
 
 	if err := json.YAMLToJSON(core.RootNode, 0, buf); err != nil {
 		return []error{
