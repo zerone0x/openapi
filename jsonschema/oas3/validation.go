@@ -122,6 +122,14 @@ func (js *Schema) Validate(ctx context.Context, opts ...validation.Option) []err
 		schema = JSONSchema31SchemaID
 	}
 
+	// In OpenAPI 3.0 a schema containing $ref is a Reference Object, not a Schema Object:
+	// any sibling properties SHALL be ignored, and the 3.0 dialect only describes Schema
+	// Objects at its root. The $ref value itself has already been validated above.
+	if schema == JSONSchema30SchemaID && js.IsReference() {
+		js.Valid = len(errs) == 0 && js.GetCore().GetValid()
+		return errs
+	}
+
 	oasSchemaValidator := initValidation(schema)
 
 	buf := bytes.NewBuffer([]byte{})

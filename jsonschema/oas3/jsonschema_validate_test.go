@@ -322,3 +322,86 @@ func TestJSONSchemaConcrete_GetExtensions_Success(t *testing.T) {
 		})
 	}
 }
+
+func TestJSONSchema_Validate_UsesParentDocumentVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		version  string
+		yml      string
+		wantErrs []string
+	}{
+		{
+			name:    "OpenAPI 3.0 accepts boolean exclusiveMinimum and exclusiveMaximum",
+			version: "3.0.3",
+			yml: `
+type: number
+minimum: 5
+exclusiveMinimum: true
+maximum: 10
+exclusiveMaximum: false
+`,
+		},
+		{
+			name:    "OpenAPI 3.1 rejects boolean exclusiveMinimum",
+			version: "3.1.0",
+			yml: `
+type: number
+minimum: 5
+exclusiveMinimum: true
+`,
+			wantErrs: []string{"[4:19] error validation-type-mismatch schema.exclusiveMinimum expected `number`, got `boolean`"},
+		},
+		{
+			name:    "OpenAPI 3.0 treats $ref with siblings as a reference object",
+			version: "3.0.3",
+			yml: `
+$ref: "#/components/schemas/User"
+description: siblings of $ref are ignored in OpenAPI 3.0
+`,
+		},
+		{
+			name:    "OpenAPI 3.0 $ref with explicit 3.0 $schema and siblings",
+			version: "3.0.3",
+			yml: `
+$schema: "https://spec.openapis.org/oas/3.0/dialect/2024-10-18"
+$ref: "#/components/schemas/User"
+required: ["name", "email"]
+`,
+		},
+		{
+			name:    "OpenAPI 3.0 still validates the $ref value",
+			version: "3.0.3",
+			yml: `
+$ref: "#/components/schemas/"
+`,
+			wantErrs: []string{"[2:1] error validation-invalid-reference invalid reference: component name cannot be empty"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var schema oas3.JSONSchema[oas3.Referenceable]
+			validationErrs, err := marshaller.Unmarshal(t.Context(), bytes.NewBufferString(tt.yml), &schema)
+			require.NoError(t, err)
+			require.Empty(t, validationErrs)
+
+			dv := &oas3.ParentDocumentVersion{OpenAPI: &tt.version}
+			errs := schema.Validate(t.Context(), validation.WithContextObject(dv))
+
+			errMessages := make([]string, 0, len(errs))
+			for _, vErr := range errs {
+				errMessages = append(errMessages, vErr.Error())
+			}
+
+			if len(tt.wantErrs) == 0 {
+				require.Empty(t, errMessages, "expected no validation errors")
+				return
+			}
+			require.ElementsMatch(t, tt.wantErrs, errMessages)
+		})
+	}
+}
